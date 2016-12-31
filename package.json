@@ -1,5 +1,5 @@
 {
-  "name": "baisi",
+  "name": "tiebasoutu",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -12,7 +12,6 @@
     "async": "^2.1.4",
     "cheerio": "^0.22.0",
     "fs-extra": "^1.0.0",
-    "jquery": "^3.1.1",
     "request": "^2.79.0",
     "superagent": "^3.3.1"
   }
