@@ -1,14 +1,14 @@
+"use strict";
 var cheerio = require('cheerio');
 //var superagent = require('superagent');
 var request = require('request');
 var fs = require('fs-extra');
 var url = require('url');
 
-var keywords = '';
+var keywords = '美女';
 var tiebaURL = 'http://tieba.baidu.com/f?ie=utf-8&fr=search&red_tag=3250217220&kw=' + encodeURIComponent(keywords);
-var tiebaURL = 'http://tieba.baidu.com/f?ie=utf-8&kw=%E8%85%BF&fr=search&red_tag=l1644111948';
 var outputHTML = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Title</title></head><body>${container}</body></html>';
-var outputFileName = 'tui1.html';
+var outputFileName = 'meinv.html';
 
 getTieba(tiebaURL);
 function getTieba(tiebaURL) {
@@ -20,42 +20,63 @@ function getTieba(tiebaURL) {
             var singleURLArr = [];
             $('.j_th_tit a').each(function (i, n) {
                 var url = $(n).attr('href');
-                if(url != '/p/2052229695' && url != '/p/1942534596' && url != '/p/3389701045' && url != '/p/2449685301' && url != '/p/5023819526' && url != '/p/4956680327'
-                && url != '/p/5019438181' && url != '/p/4982233791' && url != '/p/5026712694' && url != '/p/5016222627') {
-                    var singleURL = 'http://tieba.baidu.com' + $(n).attr('href');
-                    singleURLArr.push(singleURL);
+                if(url == '#') {
+                    return;
                 }
+
+                var singleURL = 'http://tieba.baidu.com' + url;
+                singleURLArr.push(singleURL);
             });
 
             console.log("共" + singleURLArr.length + "个主题帖");
 
-
             var singlePageIndex = 0;
             var imgHTML = '';
 
-            getPageArr(0);
-            function getPageArr(singlePageIndex) {
+            var getPageArr = function (singlePageIndex) {
                 console.log('第' + singlePageIndex + '个主题帖开始');
                 var singleURL = singleURLArr[singlePageIndex];
                 getSingleTotalPage(singleURL, function (totalPage) {
                     var sIndex = 1;
+                    var arr = [];
                     for (sIndex; sIndex <= totalPage; sIndex++) {
                         var callbackCount = 0;
                         console.log("第" + singlePageIndex + '个主题帖开始，共有' + totalPage + '页，正读取' + sIndex + '页 ' + singleURLArr[singlePageIndex]);
-                        savePageImg(singleURL, sIndex, function (singlePageImgHTML) {
-                            callbackCount++;
-                            imgHTML += singlePageImgHTML;
-                            console.log(callbackCount);
-                            if (callbackCount == totalPage) {
-                                console.log('第' + singlePageIndex + '个主题帖结束');
+                        arr.push(singleURL + "?pn=" + sIndex);
+                    }
+
+                    var sOK = function (singlePageImgHTML, index) {
+                        imgHTML += singlePageImgHTML;
+                    }
+
+                    let res = Promise.resolve();
+                    arr.forEach(function (url, index) {
+                        res = res.then(function () {
+                            console.log('第' + (index + 1) + '页读取完毕');
+                            if(index == (arr.length - 1)) {
                                 singleOK(imgHTML);
                             }
-                        });
-                    }
+                            return savePageImg(url).then(sOK.apply[null, index]);
+                        })
+                    });
+
+
+
+//                    savePageImg(singleURL, sIndex, function (singlePageImgHTML) {
+//                        callbackCount++;
+//
+//                        console.log(callbackCount);
+//                        if (callbackCount == totalPage) {
+//                            console.log('第' + singlePageIndex + '个主题帖结束');
+//
+//                        }
+//                    });
                 });
             }
 
-            function singleOK() {
+            getPageArr(0);
+
+            var singleOK = function() {
                 singlePageIndex++;
                 if (singlePageIndex == singleURLArr.length) {
                     console.log('全部抓取结束了');
@@ -84,7 +105,6 @@ function getSingleTotalPage(singleURL, callback) {
             if (lastHref) {
                 totalPage = getSingleTieTotalPage(lastHref);
             }
-            console.log(totalPage);
             callback(totalPage);
         }
     });
@@ -96,20 +116,26 @@ function getSingleTotalPage(singleURL, callback) {
     }
 }
 
-function savePageImg(singleURL, currPage, callback) {
-    request(singleURL + "?pn=" + currPage, function (error, response, body) {
-        if (!error && response.statusCode == 200) {
-            var $ = cheerio.load(body);
-            var imgHTML = '';
+function savePageImg(singleURL) {
+    console.log('请求地址 ' + singleURL);
+    return new Promise(function (resolve, reject) {
+        request(singleURL, function (error, response, body) {
+            if (!error && response.statusCode == 200) {
+                var $ = cheerio.load(body);
+                var imgHTML = '';
 
-            $('.BDE_Image').each(function (i, n) {
-                var imgSrc = $(n).attr('src');
-                if (imgSrc.indexOf('imgsrc.baidu.com') != -1) {
-                    imgHTML += '<img src="' + imgSrc + '">';
-                }
-            });
-            callback(imgHTML);
-        }
-    })
+                $('.BDE_Image').each(function (i, n) {
+                    var imgSrc = $(n).attr('src');
+                    if (imgSrc.indexOf('imgsrc.baidu.com') != -1) {
+                        imgHTML += '<img src="' + imgSrc + '">';
+                    }
+                });
+//                console.log(imgHTML);
+                resolve(imgHTML);
+            } else {
+                reject(error);
+            }
+        })
+    });
 }
 
